@@ -9,6 +9,8 @@ import Amplify from 'aws-amplify'
 import awsconfig from './aws-exports'
 
 Amplify.configure(awsconfig)
+import { AmazonAIPredictionsProvider } from '@aws-amplify/predictions'
+Amplify.addPluggable(new AmazonAIPredictionsProvider())
 
 Vue.config.productionTip = false
 

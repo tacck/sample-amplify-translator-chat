@@ -33,42 +33,88 @@
           @click:append-outer="sendMessage"
         ></v-text-field></v-col
     ></v-row>
-    <Timeline></Timeline>
+    <Timeline :messages="computedSortedMessages"></Timeline>
   </v-container>
 </template>
 
 <script>
-import { Predictions } from 'aws-amplify'
+import { API, graphqlOperation, Predictions } from 'aws-amplify'
+import { listMessages } from '@/graphql/queries'
+import { createMessage } from '@/graphql/mutations'
+import { onCreateMessage } from '@/graphql/subscriptions'
+
 import Timeline from '../components/Timeline'
 
 export default {
   components: { Timeline },
+  computed: {
+    computedSortedMessages: function () {
+      return this.messages
+        .slice()
+        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    },
+  },
   data: function () {
     return {
       userName: '',
       message: '',
       fromLang: '',
       toLang: '',
+      messages: [],
       languages: ['en', 'ja'],
+      onCreateMessageSubscription: null,
+    }
+  },
+  created: async function () {
+    const result = await API.graphql(graphqlOperation(listMessages))
+    console.log(result)
+    this.messages = result.data.listMessages.items
+
+    this.unsubscribe = API.graphql(graphqlOperation(onCreateMessage)).subscribe(
+      {
+        next: ({ provider, value }) => {
+          console.log({ provider, value })
+          this.messages.push(value.data.onCreateMessage)
+        },
+      },
+    )
+  },
+  beforeDestroy: function () {
+    if (this.onCreateMessageSubscription) {
+      this.onCreateMessageSubscription.unsubscribe()
+      this.onCreateMessageSubscription = null
     }
   },
   methods: {
-    sendMessage: function () {
+    sendMessage: async function () {
       console.log('sendMessage', this.message)
-      Predictions.convert({
+      const result = await Predictions.convert({
         translateText: {
           source: {
             text: this.message,
-            language: 'ja',
-            // language : "es" // defaults configured on aws-exports.js
+            language: this.fromLang,
             // supported languages https://docs.aws.amazon.com/translate/latest/dg/how-it-works.html#how-it-works-language-codes
           },
-          // targetLanguage: "en"
-          targetLanguage: 'en',
+          targetLanguage: this.toLang,
         },
       })
-        .then((result) => console.log({ result }))
-        .catch((err) => console.log({ err }))
+      console.log(result)
+
+      const message = await API.graphql(
+        graphqlOperation(createMessage, {
+          input: {
+            userName: this.userName,
+            originalMessage: this.message,
+            translatedMessage: result.text,
+          },
+        }),
+      )
+      console.log(message)
+
+      this.userName = ''
+      this.message = ''
+      this.fromLang = ''
+      this.toLang = ''
     },
   },
 }

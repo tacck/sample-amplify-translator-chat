@@ -25,27 +25,11 @@
 
 <script>
 export default {
-  data: function () {
-    return {
-      messages: [
-        {
-          id: 'abcdefg',
-          userName: 'foo',
-          originalMessage: 'Hello',
-          translatedMessage: 'こんにちは',
-          dateTime: Date.now(),
-        },
-        {
-          id: 'hijklmn',
-          userName: 'bar',
-          originalMessage: 'ありがとう',
-          translatedMessage: 'Thanks',
-          dateTime: Date.now(),
-        },
-      ],
-    }
+  props: {
+    messages: {
+      type: Array,
+    },
   },
-  methods: {},
 }
 </script>
 
